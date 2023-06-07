@@ -1,0 +1,32 @@
+services:
+  pgdb:
+    container_name: postgresdb
+    image: postgres:latest
+    restart: always
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    volumes:
+      - ./pgdb:/var/lib/postgresql/data
+
+  backend:
+    container_name: backend-bot
+    command: python backend/taskmanager/manage.py runserver 0.0.0.0:8000
+    build: .
+    ports:
+      - 8000:8000
+    environment:
+      DB_HOST: "pgdb"
+      DB_PORT: "5432"
+    depends_on:
+      - pgdb
+
+  bot:
+    container_name: telegram-bot
+    command: python telegram_bot/main.py
+    build: .
+    depends_on:
+      - backend

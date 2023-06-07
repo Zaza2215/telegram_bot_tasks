@@ -2,7 +2,7 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from telegram_bot.create_bot import dp, bot
+from create_bot import dp, bot
 
 
 class FSMCreateTask(StatesGroup):
