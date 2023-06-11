@@ -96,28 +96,39 @@ async def load_taskdate(message: types.Message, state: FSMContext):
     await state.finish()
 
 
+async def build_task_list_to_str(tasks):
+    task_str = ""
+
+    for num, task in enumerate(tasks, 1):
+        if task["done"]:
+            task_str += f"☑️ {num}. "
+        else:
+            task_str += f"⭕️ {num}. "
+        task_str += task["name"].ljust(48, ".") + task["date"] + "\n"
+
+    return task_str
+
+
 async def get_tasks(message: types.Message):
     data = {
         "username": message["from"]["username"],
         "password": message["from"]["id"],
     }
 
-    response = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
 
-    task_str = ""
-    for num, task in enumerate(response, 1):
-        if task["done"]:
-            task_str += f"☑️ {num}. "
-        else:
-            task_str += f"⭕️ {num}. "
-        task_str += task["name"].ljust(48, ".") + task["date_until"] + "\n"
-
-    await message.answer(task_str)
+    await message.answer(await build_task_list_to_str(tasks))
     await message.delete()
 
 
 async def delete_tasks(message: types.Message):
     await FSMDeleteTask.pk.set()
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+    }
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    await message.answer(await build_task_list_to_str(tasks))
     await message.reply("Enter the number of tasks to delete: \nEnter 'cancel' for cancel")
 
 
