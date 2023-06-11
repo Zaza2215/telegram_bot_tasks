@@ -3,6 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 from create_bot import dp, bot
+from requests_aiohttp import send_request
 
 
 class FSMCreateTask(StatesGroup):
@@ -15,12 +16,25 @@ HELP = """
 This bot helps to manage your tasks.
 /start - start bot
 /help - list of commands
+/tasks - get list of tasks
+/today - get list of tasks for today
 /create - create task
+/edit - edit task
 /delete - delete task
 """
 
 async def start_command(message: types.Message):
-    await message.answer("Start manage your tasks!")
+
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+    }
+
+    response = await send_request(url="http://localhost:8000/api/v1/createuser/", data=data, method="POST")
+    if response.status == 200:
+        await message.answer("Start manage your tasks!")
+    else:
+        await message.answer("An error has occurred!")
     await message.delete()
 
 async def help_command(message: types.Message):
