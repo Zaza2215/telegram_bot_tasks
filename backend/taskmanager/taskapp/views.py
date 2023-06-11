@@ -30,7 +30,12 @@ class TaskAPI(APIView):
             else:
                 return Response("The task isn't exist", status=404)
         else:
-            tasks = Task.objects.filter(user=user)
+            data = {}
+            for key, value in request.POST.items():
+                if key in ["date", "done"]:
+                    data[key] = value
+
+            tasks = Task.objects.filter(user=user, **data)
             return Response(TaskSerializer(tasks, many=True).data)
 
     def post(self, request):
