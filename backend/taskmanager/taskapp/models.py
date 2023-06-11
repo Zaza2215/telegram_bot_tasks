@@ -5,5 +5,5 @@ class Task(models.Model):
     done = models.BooleanField(default=False)
     name = models.CharField(max_length=48, blank=False, null=False)
     description = models.TextField()
-    date_until = models.DateField(default=None, null=True)
+    date = models.DateField(default=None, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

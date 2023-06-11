@@ -41,7 +41,7 @@ class TaskAPI(APIView):
         task_data = {
             "name": request.POST["name"],
             "description": request.POST["description"],
-            "date_until": request.POST.get("date", None),
+            "date": request.POST.get("date", None),
             "user": user
         }
 
@@ -49,7 +49,7 @@ class TaskAPI(APIView):
         return Response(TaskSerializer(task).data)
 
     def put(self, request):
-        fields = ["name", "description", "date", "date_until"]
+        fields = ["name", "done", "description", "date", "date"]
         task_data = {}
 
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
