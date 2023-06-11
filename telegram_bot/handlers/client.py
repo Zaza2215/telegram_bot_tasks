@@ -14,6 +14,9 @@ class FSMCreateTask(StatesGroup):
     description = State()
     date = State()
 
+class FSMDeleteTask(StatesGroup):
+    pk = State()
+
 
 HELP = """
 This bot helps to manage your tasks.
@@ -113,6 +116,33 @@ async def get_tasks(message: types.Message):
     await message.delete()
 
 
+async def delete_tasks(message: types.Message):
+    await FSMDeleteTask.pk.set()
+    await message.reply("Enter the number of tasks to delete: \nEnter 'cancel' for cancel")
+
+
+async def load_taskid_delete(message: types.Message, state: FSMContext):
+    if message.text != "cancel":
+        data = {
+            "username": message["from"]["username"],
+            "password": message["from"]["id"],
+        }
+        tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+        try:
+            data["id"] = tasks[int(message.text) - 1]["id"]
+        except:
+            await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
+        else:
+            response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data, method="DELETE")
+            if response.status == 200:
+                await message.reply("Task was deleted successfully")
+            else:
+                await message.answer("An error has occurred!")
+            await state.finish()
+    else:
+        await state.finish()
+
+
 def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
@@ -121,3 +151,5 @@ def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(load_taskname, state=FSMCreateTask.name)
     disp.register_message_handler(load_taskdescription, state=FSMCreateTask.description)
     disp.register_message_handler(load_taskdate, state=FSMCreateTask.date)
+    disp.register_message_handler(delete_tasks, commands=["delete"])
+    disp.register_message_handler(load_taskid_delete, state=FSMDeleteTask.pk)
