@@ -91,9 +91,10 @@ async def load_taskdate(message: types.Message, state: FSMContext):
         response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data_request, method="POST")
         if response.status == 200:
             await message.reply("Task was created successfully")
+            await state.finish()
         else:
-            await message.answer("An error has occurred!")
-    await state.finish()
+            await message.answer("An error has occurred!\nEnter again your date:")
+
 
 
 async def build_task_list_to_str(tasks):
@@ -116,8 +117,10 @@ async def get_tasks(message: types.Message):
     }
 
     tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
-
-    await message.answer(await build_task_list_to_str(tasks))
+    if tasks:
+        await message.answer(await build_task_list_to_str(tasks))
+    else:
+        await message.answer("You don't have tasks")
     await message.delete()
 
 
