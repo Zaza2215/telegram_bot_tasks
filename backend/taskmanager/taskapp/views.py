@@ -41,25 +41,25 @@ class TaskAPI(APIView):
         return Response(TaskSerializer(task).data)
 
     def put(self, request):
+        fields = ["name", "description", "date", "date_until"]
+        task_data = {}
+
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
         if not user:
             return Response("The user isn't exist")
 
-        task_data = {
-            "name": request.POST["name"],
-            "description": request.POST["description"],
-            "date_until": request.POST.get("date", None),
-            "user": user
-        }
 
-        task = Task.objects.get(pk=request.POST["id"])
+        task = Task.objects.filter(id=request.POST["id"])
         if not task:
             return Response("The task isn't exist")
         else:
-            task = Task(id=request.POST["id"], **task_data)
-            task.save()
+            for key, value in request.POST.items():
+                if key in fields:
+                    task_data[key] = value
 
-        return Response(TaskSerializer(task).data)
+            task.update(**task_data)
+
+        return Response(TaskSerializer(task[0]).data)
 
     def delete(self, request):
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
