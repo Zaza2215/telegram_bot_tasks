@@ -19,11 +19,19 @@ class TaskAPI(APIView):
     def get(self, request):
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
         if not user:
-            return Response("The user isn't exist")
+            return Response("The user isn't exist", status=404)
 
-        tasks = Task.objects.filter(user=user)
+        pk = request.POST.get("id", None)
 
-        return Response(TaskSerializer(tasks, many=True).data)
+        if pk:
+            task = Task.objects.filter(pk=pk, user=user)
+            if task.exists():
+                return Response(TaskSerializer(task[0]).data)
+            else:
+                return Response("The task isn't exist", status=404)
+        else:
+            tasks = Task.objects.filter(user=user)
+            return Response(TaskSerializer(tasks, many=True).data)
 
     def post(self, request):
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
@@ -46,12 +54,12 @@ class TaskAPI(APIView):
 
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
         if not user:
-            return Response("The user isn't exist")
+            return Response("The user isn't exist", status=404)
 
 
         task = Task.objects.filter(id=request.POST["id"])
         if not task:
-            return Response("The task isn't exist")
+            return Response("The task isn't exist", status=404)
         else:
             for key, value in request.POST.items():
                 if key in fields:
@@ -64,7 +72,7 @@ class TaskAPI(APIView):
     def delete(self, request):
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
         if not user:
-            return Response("The user isn't exist")
+            return Response("The user isn't exist", status=404)
 
         try:
             task = Task.objects.get(pk=request.POST["id"])
