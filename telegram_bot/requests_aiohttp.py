@@ -6,7 +6,7 @@ async def send_request(url, data, method: str):
     async with aiohttp.ClientSession() as session:
 
         if method == "GET":
-            async with session.post(url, data=data) as response:
+            async with session.get(url, data=data) as response:
                 await response.read()
                 return response
         elif method == "POST":

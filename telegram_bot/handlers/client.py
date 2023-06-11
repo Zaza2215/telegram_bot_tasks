@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -23,8 +25,8 @@ This bot helps to manage your tasks.
 /delete - delete task
 """
 
-async def start_command(message: types.Message):
 
+async def start_command(message: types.Message):
     data = {
         "username": message["from"]["username"],
         "password": message["from"]["id"],
@@ -36,6 +38,7 @@ async def start_command(message: types.Message):
     else:
         await message.answer("An error has occurred!")
     await message.delete()
+
 
 async def help_command(message: types.Message):
     await message.answer(HELP)
@@ -55,25 +58,40 @@ async def load_taskname(message: types.Message, state: FSMContext):
         await FSMCreateTask.next()
         await message.reply("Enter your description:")
 
+
 # Second step of creating task
 async def load_taskdescription(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["description"] = message.text
         await FSMCreateTask.next()
-        await message.reply("Enter date:\nformat: 2023-06-13")
+        await message.reply("Enter date:\nformat: 2023-06-13 or today or tomorrow")
+
 
 # The last step of creating task
 async def load_taskdate(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["date"] = message.text
-        await message.reply(str(data.items()))
+        if message.text == "today":
+            data["date"] = date.today().strftime("%Y-%m-%d")
+        elif message.text == "tomorrow":
+            tomorrow = date.today() + timedelta(days=1)
+            data["date"] = tomorrow.strftime("%Y-%m-%d")
+        else:
+            data["date"] = message.text
 
-    # Add to Database
+        # Add to Database
+        data_request = dict(data.items())
+        data_request["username"] = message["from"]["username"]
+        data_request["password"] = message["from"]["id"]
 
+        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data_request, method="POST")
+        if response.status == 200:
+            await message.reply("Task was created successfully")
+        else:
+            await message.answer("An error has occurred!")
     await state.finish()
 
 
-def register_handlers_client(disp: Dispatcher=dp):
+def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
     disp.register_message_handler(create_task, commands=["create"])
