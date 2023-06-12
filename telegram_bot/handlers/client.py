@@ -292,6 +292,21 @@ async def load_taskid_done(message: types.Message, state: FSMContext):
             await message.answer("An error has occurred!")
 
 
+async def get_tasks_today(message: types.Message):
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+        "date": date.today().strftime("%Y-%m-%d")
+    }
+
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    if tasks:
+        await message.answer(await build_task_list_to_str(tasks))
+    else:
+        await message.answer("You don't have tasks")
+    await message.delete()
+
+
 def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
@@ -309,3 +324,4 @@ def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(load_task_date_update, state=FSMUpdateTask.date)
     disp.register_message_handler(done_task, commands=["done"])
     disp.register_message_handler(load_taskid_done, state=FSMDoneTask.pk)
+    disp.register_message_handler(get_tasks_today, commands=["today"])
