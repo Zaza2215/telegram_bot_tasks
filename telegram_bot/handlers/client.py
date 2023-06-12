@@ -29,11 +29,16 @@ class FSMDoneTask(StatesGroup):
     pk = State()
 
 
+class FSMByIdTask(StatesGroup):
+    pk = State()
+
+
 HELP = """
 This bot helps to manage your tasks.
 /start - start bot
 /help - list of commands
 /tasks - get list of tasks
+/task - get task in detail
 /today - get list of tasks for today
 /create - create task
 /edit - edit task
@@ -142,7 +147,7 @@ async def delete_task(message: types.Message):
     }
     tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
-    await message.reply("Enter the number of tasks to delete: \nEnter 'cancel' for cancel")
+    await message.reply("Enter the number of task to delete: \nEnter 'cancel' for cancel")
 
 
 async def load_taskid_delete(message: types.Message, state: FSMContext):
@@ -175,7 +180,7 @@ async def update_task(message: types.Message):
     }
     tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
-    await message.reply("Enter the number of tasks to update: \nEnter 'cancel' for cancel")
+    await message.reply("Enter the number of task to update: \nEnter 'cancel' for cancel")
 
 
 async def load_taskid_update(message: types.Message, state: FSMContext):
@@ -261,7 +266,7 @@ async def done_task(message: types.Message):
     }
     tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
-    await message.reply("Enter the number of tasks to delete: \nEnter 'cancel' for cancel")
+    await message.reply("Enter the number of task to delete: \nEnter 'cancel' for cancel")
 
 
 async def load_taskid_done(message: types.Message, state: FSMContext):
@@ -307,6 +312,40 @@ async def get_tasks_today(message: types.Message):
     await message.delete()
 
 
+async def build_task_to_str(task):
+    return f"{task['name']}\nDescription: {task['description']}\nDate until: {task['date']}"
+
+async def get_task_by_id(message: types.Message):
+    await FSMByIdTask.pk.set()
+    await get_tasks(message)
+    await message.answer("Enter the number of task for view in detail: \nEnter 'cancel' for cancel")
+
+
+async def load_taskid_task(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+    }
+
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+
+    try:
+        data["id"] = tasks[int(message.text) - 1]["id"]
+    except:
+        await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
+    else:
+        response = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+        await message.answer(await build_task_to_str(response))
+        await message.delete()
+        await state.finish()
+
+
+
 def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
@@ -325,3 +364,5 @@ def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(done_task, commands=["done"])
     disp.register_message_handler(load_taskid_done, state=FSMDoneTask.pk)
     disp.register_message_handler(get_tasks_today, commands=["today"])
+    disp.register_message_handler(get_task_by_id, commands=["task"])
+    disp.register_message_handler(load_taskid_task, state=FSMByIdTask.pk)
