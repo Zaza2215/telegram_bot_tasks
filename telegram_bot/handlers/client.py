@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-import json
 
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
@@ -13,6 +12,14 @@ class FSMCreateTask(StatesGroup):
     name = State()
     description = State()
     date = State()
+
+
+class FSMUpdateTask(StatesGroup):
+    pk = State()
+    name = State()
+    description = State()
+    date = State()
+
 
 class FSMDeleteTask(StatesGroup):
     pk = State()
@@ -157,6 +164,89 @@ async def load_taskid_delete(message: types.Message, state: FSMContext):
         await state.finish()
 
 
+async def update_task(message: types.Message):
+    await FSMUpdateTask.pk.set()
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+    }
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    await message.answer(await build_task_list_to_str(tasks))
+    await message.reply("Enter the number of tasks to update: \nEnter 'cancel' for cancel")
+
+
+async def load_taskid_update(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    async with state.proxy() as data:
+        data["username"] = message["from"]["username"]
+        data["password"] = message["from"]["id"]
+
+        tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=dict(data), method="GET")
+        try:
+            data["id"] = tasks[int(message.text) - 1]["id"]
+        except:
+            await message.answer("An error has occurred!\nCheck is it a number and does it exist?\nEnter again:")
+        else:
+            await FSMUpdateTask.next()
+            await message.reply("Enter new name(length less than 48) or '.' for skip\n'cancel' for cancel")
+
+async def load_task_name_update(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    async with state.proxy() as data:
+        if message.text != ".":
+            if len(message.text) > 48:
+                data["name"] = message.text[:45] + "..."
+            else:
+                data["name"] = message.text
+
+        await message.reply("Enter new description or '.' for skip\n'сancel' for cancel")
+        await FSMUpdateTask.next()
+
+
+async def load_task_description_update(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    async with state.proxy() as data:
+        if message.text != ".":
+            data["description"] = message.text
+        await FSMUpdateTask.next()
+        await message.reply("Enter new date or '.' for skip\nfoman: 2023-06-13 or today/tomorrow\n'сancel' for cancel")
+
+async def load_task_date_update(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    async with state.proxy() as data:
+        if message.text != ".":
+            if message.text == "today":
+                data["date"] = date.today().strftime("%Y-%m-%d")
+            elif message.text == "tomorrow":
+                tomorrow = date.today() + timedelta(days=1)
+                data["date"] = tomorrow.strftime("%Y-%m-%d")
+            else:
+                data["date"] = message.text
+
+        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=dict(data), method="PUT")
+        if response.status == 200:
+            await message.reply("Task was updated successfully")
+            await state.finish()
+        else:
+            await message.reply("An error has occurred!\nEnter again your date:")
+
+
 def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
@@ -167,3 +257,9 @@ def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(load_taskdate, state=FSMCreateTask.date)
     disp.register_message_handler(delete_tasks, commands=["delete"])
     disp.register_message_handler(load_taskid_delete, state=FSMDeleteTask.pk)
+    disp.register_message_handler(update_task, commands=["update"])
+    disp.register_message_handler(load_taskid_update, state=FSMUpdateTask.pk)
+    disp.register_message_handler(load_task_name_update, state=FSMUpdateTask.name)
+    disp.register_message_handler(load_task_description_update, state=FSMUpdateTask.description)
+    disp.register_message_handler(load_task_date_update, state=FSMUpdateTask.date)
+
