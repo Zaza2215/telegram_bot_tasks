@@ -56,6 +56,7 @@ async def start_command(message: types.Message):
     response = await send_request(url="http://localhost:8000/api/v1/createuser/", data=data, method="POST")
     if response.status == 200:
         await message.answer("Start manage your tasks!")
+        await message.answer(HELP)
     else:
         await message.answer("An error has occurred!")
     await message.delete()
