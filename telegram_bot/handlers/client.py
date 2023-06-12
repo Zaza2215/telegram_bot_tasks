@@ -25,6 +25,10 @@ class FSMDeleteTask(StatesGroup):
     pk = State()
 
 
+class FSMDoneTask(StatesGroup):
+    pk = State()
+
+
 HELP = """
 This bot helps to manage your tasks.
 /start - start bot
@@ -103,13 +107,12 @@ async def load_taskdate(message: types.Message, state: FSMContext):
             await message.answer("An error has occurred!\nEnter again your date:")
 
 
-
 async def build_task_list_to_str(tasks):
     task_str = ""
 
     for num, task in enumerate(tasks, 1):
         if task["done"]:
-            task_str += f"☑️ {num}. "
+            task_str += f"✅ {num}. "
         else:
             task_str += f"⭕️ {num}. "
         task_str += task["name"].ljust(48, ".") + task["date"] + "\n"
@@ -131,7 +134,7 @@ async def get_tasks(message: types.Message):
     await message.delete()
 
 
-async def delete_tasks(message: types.Message):
+async def delete_task(message: types.Message):
     await FSMDeleteTask.pk.set()
     data = {
         "username": message["from"]["username"],
@@ -194,6 +197,7 @@ async def load_taskid_update(message: types.Message, state: FSMContext):
             await FSMUpdateTask.next()
             await message.reply("Enter new name(length less than 48) or '.' for skip\n'cancel' for cancel")
 
+
 async def load_task_name_update(message: types.Message, state: FSMContext):
     if message.text == "cancel":
         await state.finish()
@@ -223,6 +227,7 @@ async def load_task_description_update(message: types.Message, state: FSMContext
         await FSMUpdateTask.next()
         await message.reply("Enter new date or '.' for skip\nfoman: 2023-06-13 or today/tomorrow\n'сancel' for cancel")
 
+
 async def load_task_date_update(message: types.Message, state: FSMContext):
     if message.text == "cancel":
         await state.finish()
@@ -247,6 +252,46 @@ async def load_task_date_update(message: types.Message, state: FSMContext):
             await message.reply("An error has occurred!\nEnter again your date:")
 
 
+async def done_task(message: types.Message):
+    await FSMDoneTask.pk.set()
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+        "done": False,
+    }
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    await message.answer(await build_task_list_to_str(tasks))
+    await message.reply("Enter the number of tasks to delete: \nEnter 'cancel' for cancel")
+
+
+async def load_taskid_done(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Canceled")
+        return
+
+    data = {
+        "username": message["from"]["username"],
+        "password": message["from"]["id"],
+        "done": False,
+    }
+
+    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+
+    try:
+        data["id"] = tasks[int(message.text) - 1]["id"]
+    except:
+        await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
+    else:
+        data["done"] = True
+        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data, method="PUT")
+        if response.status == 200:
+            await message.reply("Task was marked as done successfully")
+            await state.finish()
+        else:
+            await message.answer("An error has occurred!")
+
+
 def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(start_command, commands=["start"])
     disp.register_message_handler(help_command, commands=["help"])
@@ -255,11 +300,12 @@ def register_handlers_client(disp: Dispatcher = dp):
     disp.register_message_handler(load_taskname, state=FSMCreateTask.name)
     disp.register_message_handler(load_taskdescription, state=FSMCreateTask.description)
     disp.register_message_handler(load_taskdate, state=FSMCreateTask.date)
-    disp.register_message_handler(delete_tasks, commands=["delete"])
+    disp.register_message_handler(delete_task, commands=["delete"])
     disp.register_message_handler(load_taskid_delete, state=FSMDeleteTask.pk)
     disp.register_message_handler(update_task, commands=["update"])
     disp.register_message_handler(load_taskid_update, state=FSMUpdateTask.pk)
     disp.register_message_handler(load_task_name_update, state=FSMUpdateTask.name)
     disp.register_message_handler(load_task_description_update, state=FSMUpdateTask.description)
     disp.register_message_handler(load_task_date_update, state=FSMUpdateTask.date)
-
+    disp.register_message_handler(done_task, commands=["done"])
+    disp.register_message_handler(load_taskid_done, state=FSMDoneTask.pk)
