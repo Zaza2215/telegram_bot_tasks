@@ -30,3 +30,6 @@ services:
     build: .
     depends_on:
       - backend
+    environment:
+      HOST: "backend"
+      PORT: "8000"

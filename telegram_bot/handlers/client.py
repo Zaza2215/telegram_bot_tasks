@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import os
 
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
@@ -7,6 +8,9 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from create_bot import dp, bot
 from requests_aiohttp import send_request, send_request_json
 
+
+HOST = os.getenv("HOST", "localhost")
+PORT = os.getenv("PORT", 8000)
 
 class FSMCreateTask(StatesGroup):
     name = State()
@@ -53,12 +57,13 @@ async def start_command(message: types.Message):
         "password": message["from"]["id"],
     }
 
-    response = await send_request(url="http://localhost:8000/api/v1/createuser/", data=data, method="POST")
+    response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/createuser/", data=data, method="POST")
     if response.status == 200:
         await message.answer("Start manage your tasks!")
         await message.answer(HELP)
     else:
         await message.answer("An error has occurred!")
+        await message.answer(response)
     await message.delete()
 
 
@@ -105,7 +110,7 @@ async def load_taskdate(message: types.Message, state: FSMContext):
         data_request["username"] = message["from"]["username"]
         data_request["password"] = message["from"]["id"]
 
-        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data_request, method="POST")
+        response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data_request, method="POST")
         if response.status == 200:
             await message.reply("Task was created successfully")
             await state.finish()
@@ -132,7 +137,7 @@ async def get_tasks(message: types.Message):
         "password": message["from"]["id"],
     }
 
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
     if tasks:
         await message.answer(await build_task_list_to_str(tasks))
     else:
@@ -146,7 +151,7 @@ async def delete_task(message: types.Message):
         "username": message["from"]["username"],
         "password": message["from"]["id"],
     }
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
     await message.reply("Enter the number of task to delete: \nEnter 'cancel' for cancel")
 
@@ -157,13 +162,13 @@ async def load_taskid_delete(message: types.Message, state: FSMContext):
             "username": message["from"]["username"],
             "password": message["from"]["id"],
         }
-        tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+        tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
         try:
             data["id"] = tasks[int(message.text) - 1]["id"]
         except:
             await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
         else:
-            response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data, method="DELETE")
+            response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="DELETE")
             if response.status == 200:
                 await message.reply("Task was deleted successfully")
             else:
@@ -179,7 +184,7 @@ async def update_task(message: types.Message):
         "username": message["from"]["username"],
         "password": message["from"]["id"],
     }
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
     await message.reply("Enter the number of task to update: \nEnter 'cancel' for cancel")
 
@@ -194,7 +199,7 @@ async def load_taskid_update(message: types.Message, state: FSMContext):
         data["username"] = message["from"]["username"]
         data["password"] = message["from"]["id"]
 
-        tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=dict(data), method="GET")
+        tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=dict(data), method="GET")
         try:
             data["id"] = tasks[int(message.text) - 1]["id"]
         except:
@@ -250,7 +255,7 @@ async def load_task_date_update(message: types.Message, state: FSMContext):
             else:
                 data["date"] = message.text
 
-        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=dict(data), method="PUT")
+        response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=dict(data), method="PUT")
         if response.status == 200:
             await message.reply("Task was updated successfully")
             await state.finish()
@@ -265,7 +270,7 @@ async def done_task(message: types.Message):
         "password": message["from"]["id"],
         "done": False,
     }
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
     await message.answer(await build_task_list_to_str(tasks))
     await message.reply("Enter the number of task to delete: \nEnter 'cancel' for cancel")
 
@@ -282,7 +287,7 @@ async def load_taskid_done(message: types.Message, state: FSMContext):
         "done": False,
     }
 
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
 
     try:
         data["id"] = tasks[int(message.text) - 1]["id"]
@@ -290,7 +295,7 @@ async def load_taskid_done(message: types.Message, state: FSMContext):
         await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
     else:
         data["done"] = True
-        response = await send_request(url="http://localhost:8000/api/v1/tasks/", data=data, method="PUT")
+        response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="PUT")
         if response.status == 200:
             await message.reply("Task was marked as done successfully")
             await state.finish()
@@ -305,7 +310,7 @@ async def get_tasks_today(message: types.Message):
         "date": date.today().strftime("%Y-%m-%d")
     }
 
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
     if tasks:
         await message.answer(await build_task_list_to_str(tasks))
     else:
@@ -333,14 +338,14 @@ async def load_taskid_task(message: types.Message, state: FSMContext):
         "password": message["from"]["id"],
     }
 
-    tasks = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+    tasks = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
 
     try:
         data["id"] = tasks[int(message.text) - 1]["id"]
     except:
         await message.answer("An error has occurred!\nCheck is it a number and does it exist?")
     else:
-        response = await send_request_json(url="http://localhost:8000/api/v1/tasks/", data=data, method="GET")
+        response = await send_request_json(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data, method="GET")
         await message.answer(await build_task_to_str(response))
         await message.delete()
         await state.finish()
