@@ -41,14 +41,14 @@ class TaskAPI(APIView):
     def post(self, request):
         user = authenticate(username=request.POST["username"], password=request.POST["password"])
         if not user:
-            return Response("The user isn't exist")
+            return Response("The user isn't exist", status=404)
 
-        task_data = {
-            "name": request.POST["name"],
-            "description": request.POST["description"],
-            "date": request.POST.get("date", None),
-            "user": user
-        }
+        fields = ["name", "description", "date", "member"]
+        task_data = {}
+
+        for key, value in request.POST.items():
+            if key in fields:
+                task_data[key] = value
 
         task = Task.objects.create(**task_data)
         return Response(TaskSerializer(task).data)
