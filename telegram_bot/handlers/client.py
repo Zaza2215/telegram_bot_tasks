@@ -8,9 +8,9 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from create_bot import dp, bot
 from requests_aiohttp import send_request, send_request_json
 
-
 HOST = os.getenv("HOST", "localhost")
 PORT = os.getenv("PORT", 8000)
+
 
 class FSMCreateTask(StatesGroup):
     name = State()
@@ -52,18 +52,7 @@ This bot helps to manage your tasks.
 
 
 async def start_command(message: types.Message):
-    data = {
-        "username": message["from"]["username"],
-        "password": message["from"]["id"],
-    }
-
-    response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/createuser/", data=data, method="POST")
-    if response.status == 200:
-        await message.answer("Start manage your tasks!")
-        await message.answer(HELP)
-    else:
-        await message.answer("An error has occurred!")
-        await message.answer(response)
+    await message.answer(HELP)
     await message.delete()
 
 
@@ -75,47 +64,64 @@ async def help_command(message: types.Message):
 # Creating task
 async def create_task(message: types.Message):
     await FSMCreateTask.name.set()
-    await message.reply("Enter your task:")
+    await message.reply("Enter your task(or cancel):")
 
 
 # First step of creating task
 async def load_taskname(message: types.Message, state: FSMContext):
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Creating task was canceled!")
+        return
+
     async with state.proxy() as data:
         data["name"] = message.text
-        await FSMCreateTask.next()
-        await message.reply("Enter your description:")
+    await FSMCreateTask.next()
+    await message.answer("Enter your description(or cancel):\nfor skip send .")
 
 
 # Second step of creating task
 async def load_taskdescription(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["description"] = message.text
-        await FSMCreateTask.next()
-        await message.reply("Enter date:\nformat: 2023-06-13 or today or tomorrow")
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Creating task was canceled!")
+        return
+    elif message.text != ".":
+        async with state.proxy() as data:
+            data["description"] = message.text
+
+    await FSMCreateTask.next()
+    await message.answer("Enter date(or cancel):\nformat: 2023-06-13 or today or tomorrow\nfor skip send .")
 
 
 # The last step of creating task
 async def load_taskdate(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
+    data_request = {}
+
+    if message.text == "cancel":
+        await state.finish()
+        await message.answer("Creating task was canceled!")
+        return
+    elif message.text != ".":
         if message.text == "today":
-            data["date"] = date.today().strftime("%Y-%m-%d")
+            data_request["data"] = date.today().strftime("%Y-%m-%d")
         elif message.text == "tomorrow":
             tomorrow = date.today() + timedelta(days=1)
-            data["date"] = tomorrow.strftime("%Y-%m-%d")
+            data_request["data"] = tomorrow.strftime("%Y-%m-%d")
         else:
-            data["date"] = message.text
+            data_request["data"] = message.text
 
-        # Add to Database
-        data_request = dict(data.items())
-        data_request["username"] = message["from"]["username"]
-        data_request["password"] = message["from"]["id"]
+    async with state.proxy() as data:
+        data_request.update(dict(data.items()))
 
-        response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data_request, method="POST")
-        if response.status == 200:
-            await message.reply("Task was created successfully")
-            await state.finish()
-        else:
-            await message.answer("An error has occurred!\nEnter again your date:")
+    data_request["member"] = message["from"]["id"]
+
+    response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/tasks/", data=data_request, method="POST")
+    if response.status == 200:
+        await message.answer("Task was created successfully")
+        await state.finish()
+    else:
+        await message.answer("An error has occurred!\nEnter again your date:")
 
 
 async def build_task_list_to_str(tasks):
@@ -321,6 +327,7 @@ async def get_tasks_today(message: types.Message):
 async def build_task_to_str(task):
     return f"{task['name']}\nDescription: {task['description']}\nDate until: {task['date']}"
 
+
 async def get_task_by_id(message: types.Message):
     await FSMByIdTask.pk.set()
     await get_tasks(message)
@@ -349,7 +356,6 @@ async def load_taskid_task(message: types.Message, state: FSMContext):
         await message.answer(await build_task_to_str(response))
         await message.delete()
         await state.finish()
-
 
 
 def register_handlers_client(disp: Dispatcher = dp):

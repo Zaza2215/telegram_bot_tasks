@@ -6,4 +6,4 @@ class Task(models.Model):
     name = models.CharField(max_length=48, blank=False, null=False)
     description = models.TextField()
     date = models.DateField(default=None, null=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    member = models.IntegerField()

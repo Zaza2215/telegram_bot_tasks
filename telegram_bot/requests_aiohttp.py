@@ -1,8 +1,20 @@
 import aiohttp
 import asyncio
 
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+auth = {
+    "username": "user_1",
+    "password": "Password_1"
+}
+
 
 async def send_request(url, data, method: str):
+    data.update(auth)
+
     async with aiohttp.ClientSession() as session:
 
         if method == "GET":
@@ -22,6 +34,8 @@ async def send_request(url, data, method: str):
 
 
 async def send_request_json(url, data, method: str):
+    data.update(auth)
+
     async with aiohttp.ClientSession() as session:
 
         if method == "GET":
