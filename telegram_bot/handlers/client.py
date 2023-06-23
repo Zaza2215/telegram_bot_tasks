@@ -19,7 +19,7 @@ async def start_command(message: types.Message):
         "password": message["from"]["id"],
     }
 
-    response = await send_request(url="http://{HOST}:{PORT}/api/v1/createuser/", data=data, method="POST")
+    response = await send_request(url=f"http://{HOST}:{PORT}/api/v1/createuser/", data=data, method="POST")
     if response.status == 200:
         await message.answer("Start manage your tasks!")
         await message.answer(HELP_TEXT)

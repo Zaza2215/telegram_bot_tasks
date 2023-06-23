@@ -26,7 +26,7 @@ services:
 
   bot:
     container_name: telegram-bot
-    command: python telegram_bot/main.py
+    command: python telegram_bot/bot.py
     build: .
     depends_on:
       - backend
