@@ -2,49 +2,10 @@ from datetime import date, timedelta
 
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from create_bot import dp, bot
-from requests_aiohttp import send_request, send_request_json
-
-
-class FSMCreateTask(StatesGroup):
-    name = State()
-    description = State()
-    date = State()
-
-
-class FSMUpdateTask(StatesGroup):
-    pk = State()
-    name = State()
-    description = State()
-    date = State()
-
-
-class FSMDeleteTask(StatesGroup):
-    pk = State()
-
-
-class FSMDoneTask(StatesGroup):
-    pk = State()
-
-
-class FSMByIdTask(StatesGroup):
-    pk = State()
-
-
-HELP = """
-This bot helps to manage your tasks.
-/start - start bot
-/help - list of commands
-/tasks - get list of tasks
-/task - get task in detail
-/today - get list of tasks for today
-/create - create task
-/edit - edit task
-/delete - delete task
-/done - mark task
-"""
+from states.task import FSMCreateTask, FSMUpdateTask, FSMDoneTask, FSMByIdTask, FSMDeleteTask
+from misc.requests_aiohttp import send_request, send_request_json
+from misc.build_messages import HELP_TEXT, build_task_list_to_str
 
 
 async def start_command(message: types.Message):
@@ -56,14 +17,14 @@ async def start_command(message: types.Message):
     response = await send_request(url="http://localhost:8000/api/v1/createuser/", data=data, method="POST")
     if response.status == 200:
         await message.answer("Start manage your tasks!")
-        await message.answer(HELP)
+        await message.answer(HELP_TEXT)
     else:
         await message.answer("An error has occurred!")
     await message.delete()
 
 
 async def help_command(message: types.Message):
-    await message.answer(HELP)
+    await message.answer(HELP_TEXT)
     await message.delete()
 
 
@@ -111,19 +72,6 @@ async def load_taskdate(message: types.Message, state: FSMContext):
             await state.finish()
         else:
             await message.answer("An error has occurred!\nEnter again your date:")
-
-
-async def build_task_list_to_str(tasks):
-    task_str = ""
-
-    for num, task in enumerate(tasks, 1):
-        if task["done"]:
-            task_str += f"✅ {num}. "
-        else:
-            task_str += f"⭕️ {num}. "
-        task_str += task["name"].ljust(48, ".") + task["date"] + "\n"
-
-    return task_str
 
 
 async def get_tasks(message: types.Message):
@@ -316,6 +264,7 @@ async def get_tasks_today(message: types.Message):
 async def build_task_to_str(task):
     return f"{task['name']}\nDescription: {task['description']}\nDate until: {task['date']}"
 
+
 async def get_task_by_id(message: types.Message):
     await FSMByIdTask.pk.set()
     await get_tasks(message)
@@ -346,24 +295,23 @@ async def load_taskid_task(message: types.Message, state: FSMContext):
         await state.finish()
 
 
-
-def register_handlers_client(disp: Dispatcher = dp):
-    disp.register_message_handler(start_command, commands=["start"])
-    disp.register_message_handler(help_command, commands=["help"])
-    disp.register_message_handler(create_task, commands=["create"])
-    disp.register_message_handler(get_tasks, commands=["tasks"])
-    disp.register_message_handler(load_taskname, state=FSMCreateTask.name)
-    disp.register_message_handler(load_taskdescription, state=FSMCreateTask.description)
-    disp.register_message_handler(load_taskdate, state=FSMCreateTask.date)
-    disp.register_message_handler(delete_task, commands=["delete"])
-    disp.register_message_handler(load_taskid_delete, state=FSMDeleteTask.pk)
-    disp.register_message_handler(update_task, commands=["update"])
-    disp.register_message_handler(load_taskid_update, state=FSMUpdateTask.pk)
-    disp.register_message_handler(load_task_name_update, state=FSMUpdateTask.name)
-    disp.register_message_handler(load_task_description_update, state=FSMUpdateTask.description)
-    disp.register_message_handler(load_task_date_update, state=FSMUpdateTask.date)
-    disp.register_message_handler(done_task, commands=["done"])
-    disp.register_message_handler(load_taskid_done, state=FSMDoneTask.pk)
-    disp.register_message_handler(get_tasks_today, commands=["today"])
-    disp.register_message_handler(get_task_by_id, commands=["task"])
-    disp.register_message_handler(load_taskid_task, state=FSMByIdTask.pk)
+def register_handlers_client(dp: Dispatcher):
+    dp.register_message_handler(start_command, commands=["start"])
+    dp.register_message_handler(help_command, commands=["help"])
+    dp.register_message_handler(create_task, commands=["create"])
+    dp.register_message_handler(get_tasks, commands=["tasks"])
+    dp.register_message_handler(load_taskname, state=FSMCreateTask.name)
+    dp.register_message_handler(load_taskdescription, state=FSMCreateTask.description)
+    dp.register_message_handler(load_taskdate, state=FSMCreateTask.date)
+    dp.register_message_handler(delete_task, commands=["delete"])
+    dp.register_message_handler(load_taskid_delete, state=FSMDeleteTask.pk)
+    dp.register_message_handler(update_task, commands=["update"])
+    dp.register_message_handler(load_taskid_update, state=FSMUpdateTask.pk)
+    dp.register_message_handler(load_task_name_update, state=FSMUpdateTask.name)
+    dp.register_message_handler(load_task_description_update, state=FSMUpdateTask.description)
+    dp.register_message_handler(load_task_date_update, state=FSMUpdateTask.date)
+    dp.register_message_handler(done_task, commands=["done"])
+    dp.register_message_handler(load_taskid_done, state=FSMDoneTask.pk)
+    dp.register_message_handler(get_tasks_today, commands=["today"])
+    dp.register_message_handler(get_task_by_id, commands=["task"])
+    dp.register_message_handler(load_taskid_task, state=FSMByIdTask.pk)
